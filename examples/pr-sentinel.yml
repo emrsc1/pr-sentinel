@@ -1,0 +1,24 @@
+# Copy to .github/workflows/pr-sentinel.yml in your repository.
+name: PR Sentinel
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: pr-sentinel-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: emrsc1/pr-sentinel@v0
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+          # language: Turkish
+          # fail_on: high

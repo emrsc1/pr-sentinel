@@ -1,0 +1,74 @@
+name: "PR Sentinel"
+description: "AI-assisted pull request triage for open source maintainers: summary, risk label and focused findings."
+author: "emrsc1"
+branding:
+  icon: "shield"
+  color: "purple"
+
+inputs:
+  openai_api_key:
+    description: "OpenAI API key. If empty (e.g. fork PRs), only the free automated checks run."
+    required: false
+  github_token:
+    description: "Token used to read the PR and post the comment."
+    required: false
+    default: ${{ github.token }}
+  model:
+    description: "OpenAI model used for the review."
+    required: false
+    default: "gpt-5.4"
+  language:
+    description: "Language of the review comment (e.g. English, Turkish)."
+    required: false
+    default: "English"
+  max_diff_chars:
+    description: "Maximum diff characters sent to the model."
+    required: false
+    default: "120000"
+  ignore:
+    description: "Comma-separated glob patterns never sent to the model."
+    required: false
+    default: "*.lock,*-lock.json,*.min.js,dist/**,vendor/**"
+  add_labels:
+    description: "Add a risk:low|medium|high label."
+    required: false
+    default: "true"
+  skip_drafts:
+    description: "Skip draft pull requests."
+    required: false
+    default: "true"
+  use_model:
+    description: "Set to false to run only the automated checks."
+    required: false
+    default: "true"
+  fail_on:
+    description: "Fail the check at this risk level: none | medium | high."
+    required: false
+    default: "none"
+
+outputs:
+  risk:
+    description: "Final risk level: low, medium or high."
+    value: ${{ steps.run.outputs.risk }}
+
+runs:
+  using: "composite"
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.12"
+    - id: run
+      shell: bash
+      env:
+        PYTHONPATH: ${{ github.action_path }}/src
+        INPUT_OPENAI_API_KEY: ${{ inputs.openai_api_key }}
+        INPUT_GITHUB_TOKEN: ${{ inputs.github_token }}
+        INPUT_MODEL: ${{ inputs.model }}
+        INPUT_LANGUAGE: ${{ inputs.language }}
+        INPUT_MAX_DIFF_CHARS: ${{ inputs.max_diff_chars }}
+        INPUT_IGNORE: ${{ inputs.ignore }}
+        INPUT_ADD_LABELS: ${{ inputs.add_labels }}
+        INPUT_SKIP_DRAFTS: ${{ inputs.skip_drafts }}
+        INPUT_USE_MODEL: ${{ inputs.use_model }}
+        INPUT_FAIL_ON: ${{ inputs.fail_on }}
+      run: python -m pr_sentinel

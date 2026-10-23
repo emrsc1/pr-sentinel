@@ -1,0 +1,6 @@
+Bu iki dosyayi .github\workflows\ klasorune tasi (guvenlik nedeniyle oraya dogrudan yazilamadi):
+
+  mkdir .github\workflows
+  move _github_workflows\*.yml .github\workflows\
+
+Sonra bu _github_workflows klasorunu silebilirsin.

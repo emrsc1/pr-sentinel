@@ -1,0 +1,17 @@
+# PR Sentinel reviews its own pull requests (dogfooding).
+name: Self review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./
+        with:
+          openai_api_key: ${{ secrets.OPENAI_API_KEY }}
