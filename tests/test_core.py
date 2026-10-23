@@ -160,3 +160,126 @@ def test_reviewers_rendered_without_mentions():
     s = analyze(parse_unified_diff(SAMPLE))
     body = render(s, None, [], None, reviewers=["@bob", "@org/security"])
     assert "Suggested reviewers (from CODEOWNERS): `@bob` `@org/security`" in body
+
+
+def test_diff_lines_tracked():
+    files = parse_unified_diff(SAMPLE)
+    login = files[0]
+    assert 6 in login.diff_lines
+    assert 3 in login.diff_lines
+    assert 100 not in login.diff_lines
+
+
+def test_clean_suggestion():
+    from pr_sentinel.comment import clean_suggestion
+    assert clean_suggestion(None) is None
+    assert clean_suggestion("  return False  ") == "return False"
+    assert clean_suggestion("```suggestion\nreturn False\n```") == "return False"
+    assert clean_suggestion("```\nreturn False\n```") == "return False"
+
+
+def test_format_inline_comment():
+    from pr_sentinel.comment import INLINE_MARKER, format_inline_comment
+
+    # English with suggestion
+    c1 = format_inline_comment({
+        "severity": "critical",
+        "message": "Admin bypasses check.",
+        "suggestion": "return False",
+    }, "English")
+    assert INLINE_MARKER in c1
+    assert "🔴 **Critical** (PR Sentinel): Admin bypasses check." in c1
+    assert "```suggestion\nreturn False\n```" in c1
+
+    # Turkish without suggestion
+    c2 = format_inline_comment({
+        "severity": "minor",
+        "message": "Değişken ismi daha açıklayıcı olabilir.",
+        "suggestion": None,
+    }, "Turkish")
+    assert INLINE_MARKER in c2
+    assert "🟡 **Minör** (PR Sentinel): Değişken ismi daha açıklayıcı olabilir." in c2
+    assert "```suggestion" not in c2
+
+
+def test_prepare_inline_comments():
+    from pr_sentinel.comment import INLINE_MARKER, prepare_inline_comments
+    files = parse_unified_diff(SAMPLE)
+
+    issues = [
+        {"file": "src/auth/login.py", "line": 6, "severity": "critical", "message": "Admin bypass.", "suggestion": "return False"},
+        {"file": "src/auth/login.py", "line": 999, "severity": "minor", "message": "Not in diff"},
+        {"file": "non_existent.py", "line": 1, "severity": "nit", "message": "Missing file"},
+        {"file": "src/auth/login.py", "line": None, "severity": "nit", "message": "No line"},
+    ]
+
+    # First run: only line 6 is eligible
+    prepared = prepare_inline_comments(issues, files)
+    assert len(prepared) == 1
+    assert prepared[0]["path"] == "src/auth/login.py"
+    assert prepared[0]["line"] == 6
+    assert "```suggestion\nreturn False\n```" in prepared[0]["body"]
+
+    # Deduplication against existing comments
+    existing = [{"path": "src/auth/login.py", "line": 6, "body": f"{INLINE_MARKER} Previous comment"}]
+    prepared_again = prepare_inline_comments(issues, files, existing_comments=existing)
+    assert len(prepared_again) == 0
+
+
+def test_github_review_and_inline_posting(monkeypatch):
+    from pr_sentinel.github import GitHub
+
+    calls = []
+
+    def fake_req(self, method, path, body=None, accept="application/vnd.github+json", raw_text=False):
+        calls.append({"method": method, "path": path, "body": body})
+        if path.endswith("/comments?per_page=100&page=1"):
+            return []
+        if path.endswith("/reviews"):
+            return {"id": 101, "state": "COMMENTED"}
+        if path.endswith("/comments"):
+            return {"id": 202}
+        return {}
+
+    monkeypatch.setattr(GitHub, "_req", fake_req)
+    gh = GitHub("token", "owner/repo")
+
+    comments = gh.pull_review_comments(12)
+    assert comments == []
+
+    items = [{"path": "a.py", "line": 5, "side": "RIGHT", "body": "comment"}]
+    count = gh.post_inline_review(12, "sha123", items, summary="Summary")
+    assert count == 1
+    assert calls[-1]["method"] == "POST"
+    assert calls[-1]["path"] == "/repos/owner/repo/pulls/12/reviews"
+    assert calls[-1]["body"]["commit_id"] == "sha123"
+    assert calls[-1]["body"]["comments"] == items
+
+
+def test_github_review_fallback_to_individual_comments(monkeypatch):
+    from pr_sentinel.github import GitHub
+
+    review_called = []
+    individual_called = []
+
+    def fake_req(self, method, path, body=None, accept="application/vnd.github+json", raw_text=False):
+        if "/reviews" in path:
+            review_called.append(True)
+            raise RuntimeError("GitHub API 422 line not in diff")
+        if "/comments" in path:
+            individual_called.append(body)
+            return {"id": 1}
+        return {}
+
+    monkeypatch.setattr(GitHub, "_req", fake_req)
+    gh = GitHub("token", "owner/repo")
+
+    items = [
+        {"path": "a.py", "line": 5, "side": "RIGHT", "body": "comment 1"},
+        {"path": "b.py", "line": 10, "side": "RIGHT", "body": "comment 2"},
+    ]
+    posted = gh.post_inline_review(12, "sha123", items)
+    assert review_called == [True]
+    assert posted == 2
+    assert len(individual_called) == 2
+

@@ -49,6 +49,10 @@ inputs:
     description: "List CODEOWNERS of the changed files in the comment (shown without @-mentions)."
     required: false
     default: "true"
+  inline_comments:
+    description: "Post inline review comments on the PR diff for findings with specific lines."
+    required: false
+    default: "true"
   use_model:
     description: "Set to false to run only the automated checks."
     required: false
@@ -84,6 +88,7 @@ runs:
         INPUT_REVIEW_BOTS: ${{ inputs.review_bots }}
         INPUT_SKIP_LABEL: ${{ inputs.skip_label }}
         INPUT_SUGGEST_REVIEWERS: ${{ inputs.suggest_reviewers }}
+        INPUT_INLINE_COMMENTS: ${{ inputs.inline_comments }}
         INPUT_USE_MODEL: ${{ inputs.use_model }}
         INPUT_FAIL_ON: ${{ inputs.fail_on }}
       run: python -m pr_sentinel

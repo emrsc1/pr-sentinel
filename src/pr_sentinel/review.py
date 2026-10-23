@@ -14,6 +14,7 @@ OPENAI_URL = os.environ.get("OPENAI_BASE_URL", "https://api.openai.com/v1").rstr
 SYSTEM = """You are PR Sentinel, a careful reviewer helping open source maintainers triage pull requests.
 Be concise, specific and honest. Only report problems you can point to in the diff.
 Never invent files, functions or line numbers. If the diff looks fine, say so.
+When proposing a concrete code fix for an issue on a specific line, provide the replacement line(s) in 'suggestion'.
 Write in {language}."""
 
 SCHEMA = {
@@ -29,12 +30,16 @@ SCHEMA = {
             "items": {
                 "type": "object",
                 "additionalProperties": False,
-                "required": ["file", "line", "severity", "message"],
+                "required": ["file", "line", "severity", "message", "suggestion"],
                 "properties": {
                     "file": {"type": "string"},
                     "line": {"type": ["integer", "null"]},
                     "severity": {"type": "string", "enum": ["nit", "minor", "major", "critical"]},
                     "message": {"type": "string"},
+                    "suggestion": {
+                        "type": ["string", "null"],
+                        "description": "Exact replacement code for the line(s) to fix the issue, or null.",
+                    },
                 },
             },
         },

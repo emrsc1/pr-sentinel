@@ -11,10 +11,21 @@ import os
 import sys
 
 from . import codeowners
-from .comment import MARKER, final_risk, render
+from .comment import MARKER, final_risk, prepare_inline_comments, render
 from .diff import build_prompt_diff, parse_unified_diff
 from .heuristics import analyze
 from .review import build_input, run_review
+
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
 
 
 def env(name: str, default: str = "") -> str:
@@ -74,7 +85,16 @@ def local(path: str, use_model: bool) -> int:
         files = parse_unified_diff(fh.read())
     signals = analyze(files)
     review, skipped, model, note = _review_or_note("(local run)", "", signals, files, use_model)
-    print(render(signals, review, skipped, model, note, env("language", "English")))
+    lang = env("language", "English")
+    print(render(signals, review, skipped, model, note, lang))
+    if review and review.issues:
+        inline_items = prepare_inline_comments(review.issues, files, language=lang)
+        if inline_items:
+            print("\n--- Inline Review Comments ---")
+            for item in inline_items:
+                print(f"[{item['path']}:{item['line']}]")
+                print(item["body"])
+                print()
     return 0
 
 
@@ -109,6 +129,26 @@ def action() -> int:
             gh.set_risk_label(number, f"risk:{risk}")
         except RuntimeError as e:
             print(f"::warning::Could not set label: {e}", file=sys.stderr)
+
+    if env("inline_comments", "true").lower() == "true" and review and review.issues:
+        try:
+            head_sha = (pr.get("head") or {}).get("sha")
+            if not head_sha:
+                pr_data = gh.pull(number)
+                head_sha = (pr_data.get("head") or {}).get("sha", "")
+            if head_sha:
+                existing_comments = gh.pull_review_comments(number)
+                inline_items = prepare_inline_comments(
+                    review.issues,
+                    files,
+                    existing_comments,
+                    env("language", "English"),
+                )
+                if inline_items:
+                    posted = gh.post_inline_review(number, head_sha, inline_items)
+                    print(f"PR Sentinel: posted {posted} inline review comment(s).")
+        except Exception as e:
+            print(f"::warning::Could not post inline review comments: {e}", file=sys.stderr)
 
     out = os.environ.get("GITHUB_OUTPUT")
     if out:

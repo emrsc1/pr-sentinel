@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0 — 2026-10-23
+
+### Added
+- Inline code review comments: PR Sentinel posts line-level review comments via the GitHub Pull Request Reviews API for findings tied to specific lines in the diff hunks.
+- One-click GitHub code suggestions: When proposing a fix, the model supplies a code replacement block (` ```suggestion ````) that maintainers can accept directly in the GitHub PR UI.
+- Duplicate prevention & fallback: Comments are deduplicated against existing PR Sentinel review comments on subsequent pushes, and reviews automatically fall back to individual comments if any single position is rejected by GitHub.
+- Configurable with `inline_comments: true` (default) or `false`.
+
 ## 0.3.0 — 2026-10-23
 
 ### Added

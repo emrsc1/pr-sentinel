@@ -1,10 +1,12 @@
 """Render the PR comment."""
 from __future__ import annotations
 
+from .diff import FileDiff
 from .heuristics import Signals
 from .review import Review
 
 MARKER = "<!-- pr-sentinel -->"
+INLINE_MARKER = "<!-- pr-sentinel-inline -->"
 _ICON = {"low": "🟢", "medium": "🟡", "high": "🔴"}
 _SEV = {"critical": "🔴", "major": "🟠", "minor": "🟡", "nit": "⚪"}
 _ORDER = {"critical": 0, "major": 1, "minor": 2, "nit": 3}
@@ -134,3 +136,78 @@ def render(
         footer += " " + t["tokens"].format(i=f"{review.input_tokens:,}", o=f"{review.output_tokens:,}")
     out.append(f"<sub>{footer} · [pr-sentinel](https://github.com/emrsc1/pr-sentinel)</sub>")
     return "\n".join(out)
+
+
+def clean_suggestion(snippet: str | None) -> str | None:
+    """Normalize code suggestion by stripping markdown code fences."""
+    if not snippet:
+        return None
+    s = snippet.strip()
+    if s.startswith("```suggestion"):
+        s = s[len("```suggestion"):].strip()
+    elif s.startswith("```"):
+        s = s.strip("`").strip()
+    if s.endswith("```"):
+        s = s[:-3].strip()
+    return s if s else None
+
+
+def format_inline_comment(issue: dict, language: str | None = None) -> str:
+    """Format an issue as a GitHub inline review comment body with optional suggestion."""
+    t = STRINGS[lang_code(language)]
+    sev = issue.get("severity", "nit")
+    sev_str = _sev(t, sev).capitalize()
+    icon = _SEV.get(sev, "⚪")
+    msg = (issue.get("message") or "").strip()
+
+    body = f"{INLINE_MARKER}\n{icon} **{sev_str}** (PR Sentinel): {msg}"
+    sug = clean_suggestion(issue.get("suggestion"))
+    if sug:
+        body += f"\n\n```suggestion\n{sug}\n```"
+    return body
+
+
+def prepare_inline_comments(
+    issues: list[dict],
+    files: list[FileDiff],
+    existing_comments: list[dict] | None = None,
+    language: str | None = None,
+) -> list[dict]:
+    """Filter issues to those tied to diff lines, deduplicate, and format for GitHub review comments."""
+    files_map = {f.path: f for f in files}
+    existing_keys: set[tuple[str, int]] = set()
+    for c in existing_comments or []:
+        body = c.get("body") or ""
+        if INLINE_MARKER in body:
+            path = c.get("path")
+            line = c.get("line") or c.get("original_line")
+            if path and line:
+                try:
+                    existing_keys.add((path, int(line)))
+                except (ValueError, TypeError):
+                    pass
+
+    inline_items: list[dict] = []
+    seen_in_batch: set[tuple[str, int]] = set()
+
+    for issue in issues:
+        path = issue.get("file")
+        line = issue.get("line")
+        if not path or not isinstance(line, int) or line <= 0:
+            continue
+        file_diff = files_map.get(path)
+        if not file_diff or line not in file_diff.diff_lines:
+            continue
+        key = (path, line)
+        if key in existing_keys or key in seen_in_batch:
+            continue
+        seen_in_batch.add(key)
+
+        inline_items.append({
+            "path": path,
+            "line": line,
+            "side": "RIGHT",
+            "body": format_inline_comment(issue, language),
+        })
+    return inline_items
+

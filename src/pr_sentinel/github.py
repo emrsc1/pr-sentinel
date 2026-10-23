@@ -80,3 +80,70 @@ class GitHub:
                     pass
         if label not in current:
             self._req("POST", f"/repos/{self.repo}/issues/{number}/labels", {"labels": [label]})
+
+    def pull_review_comments(self, number: int) -> list[dict]:
+        """Fetch all pull request review comments (inline comments)."""
+        out: list[dict] = []
+        page = 1
+        while True:
+            batch = self._req("GET", f"/repos/{self.repo}/pulls/{number}/comments?per_page=100&page={page}")
+            out.extend(batch)
+            if len(batch) < 100:
+                return out
+            page += 1
+
+    def create_review(
+        self,
+        number: int,
+        commit_id: str,
+        comments: list[dict],
+        body: str = "",
+        event: str = "COMMENT",
+    ) -> dict | None:
+        """Create a pull request review with inline comments."""
+        if not comments:
+            return None
+        payload: dict[str, Any] = {
+            "commit_id": commit_id,
+            "event": event,
+            "comments": comments,
+        }
+        if body:
+            payload["body"] = body
+        return self._req("POST", f"/repos/{self.repo}/pulls/{number}/reviews", payload)
+
+    def create_review_comment(self, number: int, commit_id: str, path: str, line: int, body: str) -> dict:
+        """Post a single review comment on a PR diff line."""
+        payload = {
+            "commit_id": commit_id,
+            "path": path,
+            "line": line,
+            "side": "RIGHT",
+            "body": body,
+        }
+        return self._req("POST", f"/repos/{self.repo}/pulls/{number}/comments", payload)
+
+    def post_inline_review(
+        self,
+        number: int,
+        commit_id: str,
+        comments: list[dict],
+        summary: str = "",
+    ) -> int:
+        """Post inline comments via review, falling back to individual comments if needed."""
+        if not comments:
+            return 0
+        try:
+            self.create_review(number, commit_id, comments, body=summary)
+            return len(comments)
+        except Exception as e:
+            posted = 0
+            for c in comments:
+                try:
+                    self.create_review_comment(number, commit_id, c["path"], c["line"], c["body"])
+                    posted += 1
+                except Exception:
+                    pass
+            if posted > 0:
+                return posted
+            raise e

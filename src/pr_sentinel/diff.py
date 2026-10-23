@@ -17,6 +17,7 @@ class FileDiff:
     deletions: int = 0
     lines: list[str] = field(default_factory=list)
     added_lines: list[tuple[int, str]] = field(default_factory=list)
+    diff_lines: set[int] = field(default_factory=set)
 
     @property
     def text(self) -> str:
@@ -57,10 +58,14 @@ def parse_unified_diff(diff: str) -> list[FileDiff]:
         elif raw.startswith("+"):
             cur.additions += 1
             cur.added_lines.append((new_line, raw[1:]))
+            if new_line > 0:
+                cur.diff_lines.add(new_line)
             new_line += 1
         elif raw.startswith("-"):
             cur.deletions += 1
         elif raw.startswith(" "):
+            if new_line > 0:
+                cur.diff_lines.add(new_line)
             new_line += 1
     return files
 
