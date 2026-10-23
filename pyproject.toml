@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pr-sentinel"
-version = "0.2.0"
+version = "0.3.0"
 description = "AI-assisted pull request triage for open source maintainers"
 readme = "README.md"
 license = { text = "MIT" }

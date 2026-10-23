@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.0 — 2026-10-23
+
+### Added
+- Suggested reviewers: PR Sentinel reads `CODEOWNERS` (`.github/`, root or `docs/`) from the base branch and lists the owners of the changed files, ranked by how many files they own. Owners are shown in backticks, so nobody gets an extra notification. The PR author is excluded. Turn off with `suggest_reviewers: false`.
+
 ## 0.2.0 — 2026-10-23
 
 ### Added

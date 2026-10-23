@@ -123,3 +123,40 @@ def test_skip_rules():
     assert skip_reason({"user": {"login": "dependabot[bot]", "type": "Bot"}}, review_bots="true") is None
     assert "sentinel:skip" in skip_reason({"user": {"login": "x"}, "labels": [{"name": "sentinel:skip"}]})
     assert skip_reason({"user": {"login": "x", "type": "User"}, "labels": [{"name": "bug"}]}) is None
+
+
+CODEOWNERS = """
+# default owner
+*                   @alice
+/docs/              @docs-team
+*.js                @frontend
+/src/auth/          @org/security @bob
+src/**/migrations/  @dba
+README.md
+"""
+
+
+def test_codeowners_matching():
+    from pr_sentinel.codeowners import owners_for, parse
+    rules = parse(CODEOWNERS)
+    assert owners_for("setup.py", rules) == ["@alice"]
+    assert owners_for("docs/guide/intro.md", rules) == ["@docs-team"]
+    assert owners_for("web/app/main.js", rules) == ["@frontend"]  # unanchored, any depth
+    assert owners_for("src/auth/login.py", rules) == ["@org/security", "@bob"]
+    assert owners_for("lib/src/auth/x.py", rules) == ["@alice"]  # /src/auth/ is anchored
+    assert owners_for("src/app/db/migrations/0001.py", rules) == ["@dba"]
+    assert owners_for("README.md", rules) == []  # empty owner list clears ownership
+
+
+def test_suggest_reviewers_ranked_and_excludes_author():
+    from pr_sentinel.codeowners import parse, suggest_reviewers
+    rules = parse(CODEOWNERS)
+    paths = ["src/auth/login.py", "src/auth/token.py", "setup.py"]
+    assert suggest_reviewers(paths, rules) == ["@bob", "@org/security", "@alice"]
+    assert suggest_reviewers(paths, rules, author="bob") == ["@org/security", "@alice"]
+
+
+def test_reviewers_rendered_without_mentions():
+    s = analyze(parse_unified_diff(SAMPLE))
+    body = render(s, None, [], None, reviewers=["@bob", "@org/security"])
+    assert "Suggested reviewers (from CODEOWNERS): `@bob` `@org/security`" in body

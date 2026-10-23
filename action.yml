@@ -45,6 +45,10 @@ inputs:
     description: "PRs with this label are skipped."
     required: false
     default: "sentinel:skip"
+  suggest_reviewers:
+    description: "List CODEOWNERS of the changed files in the comment (shown without @-mentions)."
+    required: false
+    default: "true"
   use_model:
     description: "Set to false to run only the automated checks."
     required: false
@@ -79,6 +83,7 @@ runs:
         INPUT_SKIP_DRAFTS: ${{ inputs.skip_drafts }}
         INPUT_REVIEW_BOTS: ${{ inputs.review_bots }}
         INPUT_SKIP_LABEL: ${{ inputs.skip_label }}
+        INPUT_SUGGEST_REVIEWERS: ${{ inputs.suggest_reviewers }}
         INPUT_USE_MODEL: ${{ inputs.use_model }}
         INPUT_FAIL_ON: ${{ inputs.fail_on }}
       run: python -m pr_sentinel

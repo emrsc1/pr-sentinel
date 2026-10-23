@@ -15,7 +15,7 @@ class GitHub:
         self.token = token
         self.repo = repo
 
-    def _req(self, method: str, path: str, body: Any = None, accept: str = "application/vnd.github+json") -> Any:
+    def _req(self, method: str, path: str, body: Any = None, accept: str = "application/vnd.github+json", raw_text: bool = False) -> Any:
         url = path if path.startswith("http") else f"{API}{path}"
         data = json.dumps(body).encode() if body is not None else None
         req = urllib.request.Request(url, data=data, method=method)
@@ -31,7 +31,7 @@ class GitHub:
         except urllib.error.HTTPError as e:
             detail = e.read().decode("utf-8", errors="replace")[:500]
             raise RuntimeError(f"GitHub API {method} {path} failed: {e.code} {detail}") from e
-        if accept.endswith("diff"):
+        if raw_text or accept.endswith("diff"):
             return raw
         return json.loads(raw) if raw else None
 
@@ -40,6 +40,16 @@ class GitHub:
 
     def pull_diff(self, number: int) -> str:
         return self._req("GET", f"/repos/{self.repo}/pulls/{number}", accept="application/vnd.github.v3.diff")
+
+    def file_text(self, path: str, ref: str | None = None) -> str | None:
+        """Raw text of a file in the repo, or None if it doesn't exist."""
+        q = f"?ref={urllib.request.quote(ref)}" if ref else ""
+        try:
+            return self._req("GET", f"/repos/{self.repo}/contents/{path}{q}", accept="application/vnd.github.raw", raw_text=True)
+        except RuntimeError as e:
+            if " 404 " in str(e):
+                return None
+            raise
 
     def comments(self, number: int) -> list[dict]:
         out: list[dict] = []

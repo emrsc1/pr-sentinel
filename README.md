@@ -8,6 +8,7 @@ Maintainers are drowning in pull requests, and a growing share of them are large
 - **How risky is it?** A `risk:low | medium | high` label you can filter and sort by.
 - **Where should I look?** Specific findings tied to files and lines.
 - **Is it worth my time?** A flag for PRs that look low-effort or unreviewed.
+- **Who should review it?** Owners of the changed files from your `CODEOWNERS`, without pinging anyone.
 
 It updates the same comment on every push instead of spamming the thread, shows how many tokens each review used, and can write the whole comment in Turkish.
 
@@ -76,6 +77,7 @@ Design choices that matter to maintainers:
 | `skip_drafts` | `true` | Ignore draft PRs. |
 | `review_bots` | `false` | Also review PRs from bots (Dependabot, Renovate…). |
 | `skip_label` | `sentinel:skip` | PRs with this label are skipped. |
+| `suggest_reviewers` | `true` | List CODEOWNERS of the changed files (no @-mentions). |
 | `use_model` | `true` | `false` = free heuristics-only mode. |
 | `fail_on` | `none` | `medium` or `high` to fail the check at that risk. |
 
@@ -99,6 +101,7 @@ OPENAI_API_KEY=sk-... PYTHONPATH=src python -m pr_sentinel --diff my.diff
 - [x] Token usage per review
 - [x] Turkish comment layout
 - [x] Skip bot PRs and PRs labeled `sentinel:skip`
+- [x] Suggested reviewers from CODEOWNERS
 - [ ] Dollar cost estimate per PR
 
 ## Contributing

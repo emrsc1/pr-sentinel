@@ -18,6 +18,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "low_effort": "This PR may be low-effort or unreviewed generated output. A human should check it closely before spending review time.",
         "findings": "Findings",
         "tests": "Suggested tests",
+        "reviewers": "Suggested reviewers (from CODEOWNERS):",
         "checks": "Automated checks",
         "not_sent": "Not sent to the model:",
         "more": "and {n} more",
@@ -38,6 +39,7 @@ STRINGS: dict[str, dict[str, str]] = {
         "low_effort": "Bu PR özensiz ya da gözden geçirilmeden üretilmiş olabilir. İnceleme için zaman harcamadan önce bir insanın dikkatlice bakması iyi olur.",
         "findings": "Bulgular",
         "tests": "Önerilen testler",
+        "reviewers": "Önerilen reviewer'lar (CODEOWNERS'a göre):",
         "checks": "Otomatik kontroller",
         "not_sent": "Modele gönderilmeyenler:",
         "more": "ve {n} tane daha",
@@ -83,6 +85,7 @@ def render(
     model: str | None,
     note: str | None = None,
     language: str | None = None,
+    reviewers: list[str] | None = None,
 ) -> str:
     t = STRINGS[lang_code(language)]
     risk = final_risk(signals, review)
@@ -107,6 +110,10 @@ def render(
             out.append(f"### {t['tests']}")
             out += [f"- {x}" for x in review.missing_tests]
             out.append("")
+
+    if reviewers:
+        # Backticks so owners are shown without being @-mentioned (no notification spam).
+        out += [f"{t['reviewers']} " + " ".join(f"`{r}`" for r in reviewers), ""]
 
     if signals.findings:
         out.append(f"<details><summary>{t['checks']}</summary>\n")

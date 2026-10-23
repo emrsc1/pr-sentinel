@@ -10,6 +10,7 @@ import json
 import os
 import sys
 
+from . import codeowners
 from .comment import MARKER, final_risk, render
 from .diff import build_prompt_diff, parse_unified_diff
 from .heuristics import analyze
@@ -32,6 +33,21 @@ def skip_reason(pr: dict, skip_drafts: str = "true", review_bots: str = "false",
     if skip_label and skip_label in labels:
         return f"'{skip_label}' label"
     return None
+
+
+def _reviewers(gh, pr: dict, files) -> list[str]:
+    """Suggest CODEOWNERS for the changed files; never fail the run over it."""
+    base = (pr.get("base") or {}).get("ref")
+    try:
+        for path in codeowners.CODEOWNERS_PATHS:
+            text = gh.file_text(path, base)
+            if text:
+                rules = codeowners.parse(text)
+                author = (pr.get("user") or {}).get("login")
+                return codeowners.suggest_reviewers([f.path for f in files], rules, author)
+    except Exception as e:
+        print(f"::warning::Could not read CODEOWNERS: {e}", file=sys.stderr)
+    return []
 
 
 def _review_or_note(title, body, signals, files, use_model):
@@ -83,7 +99,8 @@ def action() -> int:
     files = parse_unified_diff(gh.pull_diff(number))
     signals = analyze(files)
     review, skipped, model, note = _review_or_note(pr.get("title", ""), pr.get("body") or "", signals, files, env("use_model", "true").lower() == "true")
-    body = render(signals, review, skipped, model, note, env("language", "English"))
+    reviewers = _reviewers(gh, pr, files) if env("suggest_reviewers", "true").lower() == "true" else []
+    body = render(signals, review, skipped, model, note, env("language", "English"), reviewers)
 
     result = gh.upsert_comment(number, body, MARKER)
     risk = final_risk(signals, review)
