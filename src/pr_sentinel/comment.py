@@ -1,6 +1,7 @@
 """Render the PR comment."""
 from __future__ import annotations
 
+from .cost import estimate_cost, format_cost
 from .diff import FileDiff
 from .heuristics import Signals
 from .review import Review
@@ -133,7 +134,12 @@ def render(
     if model:
         footer += f" {t['model']} `{model}`."
     if review and (review.input_tokens or review.output_tokens):
-        footer += " " + t["tokens"].format(i=f"{review.input_tokens:,}", o=f"{review.output_tokens:,}")
+        tokens_part = t["tokens"].format(i=f"{review.input_tokens:,}", o=f"{review.output_tokens:,}")
+        cost_val = estimate_cost(model, review.input_tokens, review.output_tokens)
+        cost_str = format_cost(cost_val)
+        if cost_str:
+            tokens_part = tokens_part.rstrip(".") + f" (~{cost_str})."
+        footer += " " + tokens_part
     out.append(f"<sub>{footer} · [pr-sentinel](https://github.com/emrsc1/pr-sentinel)</sub>")
     return "\n".join(out)
 

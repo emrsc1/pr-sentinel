@@ -10,7 +10,7 @@ Maintainers are drowning in pull requests, and a growing share of them are large
 - **Is it worth my time?** A flag for PRs that look low-effort or unreviewed.
 - **Who should review it?** Owners of the changed files from your `CODEOWNERS`, without pinging anyone.
 
-It updates the same comment on every push instead of spamming the thread, posts line-level review comments with suggestions directly in the diff, shows how many tokens each review used, and can write the whole comment in Turkish.
+It updates the same comment on every push instead of spamming the thread, posts line-level review comments with suggestions directly in the diff, shows token counts and estimated dollar cost for each review, and can write the whole comment in Turkish.
 
 [![CI](https://github.com/emrsc1/pr-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/emrsc1/pr-sentinel/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -103,7 +103,7 @@ OPENAI_API_KEY=sk-... PYTHONPATH=src python -m pr_sentinel --diff my.diff
 - [x] Turkish comment layout
 - [x] Skip bot PRs and PRs labeled `sentinel:skip`
 - [x] Suggested reviewers from CODEOWNERS
-- [ ] Dollar cost estimate per PR
+- [x] Dollar cost estimate per PR
 
 ## Contributing
 

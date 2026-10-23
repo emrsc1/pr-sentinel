@@ -283,3 +283,42 @@ def test_github_review_fallback_to_individual_comments(monkeypatch):
     assert posted == 2
     assert len(individual_called) == 2
 
+
+def test_cost_calculation():
+    from pr_sentinel.cost import estimate_cost, find_pricing, format_cost
+
+    assert find_pricing("gpt-5.4") == (2.50, 10.00)
+    assert find_pricing("gpt-4o-mini-2024-07-18") == (0.15, 0.60)
+    assert find_pricing("o3-mini") == (1.10, 4.40)
+    assert find_pricing("unknown-model") == (2.50, 10.00)
+
+    # gpt-4o-mini: 10,000 in, 1,000 out => 10,000*0.15/1M + 1,000*0.60/1M = 0.0015 + 0.0006 = 0.0021
+    cost = estimate_cost("gpt-4o-mini", 10_000, 1_000)
+    assert abs(cost - 0.0021) < 1e-6
+    assert format_cost(cost) == "$0.0021"
+
+    # Edge cases
+    assert format_cost(None) is None
+    assert format_cost(0.0) == "$0.00"
+    assert format_cost(0.0376) == "$0.038"
+    assert format_cost(1.234) == "$1.23"
+
+
+def test_render_includes_cost_estimate():
+    s = analyze(parse_unified_diff(SAMPLE))
+    r = Review(
+        summary="Özet",
+        risk="low",
+        risk_reason="",
+        input_tokens=12345,
+        output_tokens=678,
+    )
+    # English
+    body_en = render(s, r, [], "gpt-5.4")
+    assert "Tokens: 12,345 in / 678 out (~$0.038)." in body_en
+
+    # Turkish
+    body_tr = render(s, r, [], "gpt-5.4", language="Turkish")
+    assert "Token: 12,345 girdi / 678 çıktı (~$0.038)." in body_tr
+
+

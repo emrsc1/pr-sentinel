@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.0 — 2026-10-23
+
+### Added
+- Dollar cost estimate per PR: PR Sentinel now calculates and displays the estimated USD cost of each review alongside token counts in the comment footer (e.g. `Tokens: 1,234 in / 567 out (~$0.004).`).
+- Built-in pricing model table covering OpenAI models (`gpt-5.4`, `gpt-4o`, `gpt-4o-mini`, `o1`, `o3-mini`, etc.) with intelligent prefix matching.
+
 ## 0.4.0 — 2026-10-23
 
 ### Added
