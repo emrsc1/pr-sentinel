@@ -18,7 +18,7 @@ inputs:
     required: false
     default: "gpt-5.4"
   language:
-    description: "Language of the review comment (e.g. English, Turkish)."
+    description: "Language of the review comment (e.g. English, Turkish). Turkish also localizes the comment layout."
     required: false
     default: "English"
   max_diff_chars:
@@ -37,6 +37,14 @@ inputs:
     description: "Skip draft pull requests."
     required: false
     default: "true"
+  review_bots:
+    description: "Also review PRs opened by bots (dependabot, renovate...)."
+    required: false
+    default: "false"
+  skip_label:
+    description: "PRs with this label are skipped."
+    required: false
+    default: "sentinel:skip"
   use_model:
     description: "Set to false to run only the automated checks."
     required: false
@@ -69,6 +77,8 @@ runs:
         INPUT_IGNORE: ${{ inputs.ignore }}
         INPUT_ADD_LABELS: ${{ inputs.add_labels }}
         INPUT_SKIP_DRAFTS: ${{ inputs.skip_drafts }}
+        INPUT_REVIEW_BOTS: ${{ inputs.review_bots }}
+        INPUT_SKIP_LABEL: ${{ inputs.skip_label }}
         INPUT_USE_MODEL: ${{ inputs.use_model }}
         INPUT_FAIL_ON: ${{ inputs.fail_on }}
       run: python -m pr_sentinel

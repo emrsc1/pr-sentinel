@@ -9,7 +9,7 @@ Maintainers are drowning in pull requests, and a growing share of them are large
 - **Where should I look?** Specific findings tied to files and lines.
 - **Is it worth my time?** A flag for PRs that look low-effort or unreviewed.
 
-It updates the same comment on every push instead of spamming the thread.
+It updates the same comment on every push instead of spamming the thread, shows how many tokens each review used, and can write the whole comment in Turkish.
 
 [![CI](https://github.com/emrsc1/pr-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/emrsc1/pr-sentinel/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -69,11 +69,13 @@ Design choices that matter to maintainers:
 |---|---|---|
 | `openai_api_key` | — | OpenAI key. Empty → automated checks only. |
 | `model` | `gpt-5.4` | Model used for review. |
-| `language` | `English` | Language of the comment, e.g. `Turkish`. |
+| `language` | `English` | Language of the comment. `Turkish` also translates the comment layout. |
 | `max_diff_chars` | `120000` | Max diff size sent to the model. |
 | `ignore` | `*.lock,*-lock.json,*.min.js,dist/**,vendor/**` | Globs never sent to the model. |
 | `add_labels` | `true` | Add `risk:*` labels. |
 | `skip_drafts` | `true` | Ignore draft PRs. |
+| `review_bots` | `false` | Also review PRs from bots (Dependabot, Renovate…). |
+| `skip_label` | `sentinel:skip` | PRs with this label are skipped. |
 | `use_model` | `true` | `false` = free heuristics-only mode. |
 | `fail_on` | `none` | `medium` or `high` to fail the check at that risk. |
 
@@ -94,7 +96,10 @@ OPENAI_API_KEY=sk-... PYTHONPATH=src python -m pr_sentinel --diff my.diff
 - [ ] Contributor-facing mode: suggestions the author can fix before a maintainer looks
 - [ ] Duplicate PR / issue detection
 - [ ] Release notes and changelog drafting from merged PRs
-- [ ] Cost report per PR (tokens and dollars)
+- [x] Token usage per review
+- [x] Turkish comment layout
+- [x] Skip bot PRs and PRs labeled `sentinel:skip`
+- [ ] Dollar cost estimate per PR
 
 ## Contributing
 

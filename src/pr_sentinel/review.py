@@ -55,6 +55,8 @@ class Review:
     issues: list[dict] = field(default_factory=list)
     missing_tests: list[str] = field(default_factory=list)
     likely_low_effort: bool = False
+    input_tokens: int = 0
+    output_tokens: int = 0
 
 
 def build_input(title: str, body: str, signals: Signals, diff: str, skipped: list[str]) -> str:
@@ -99,4 +101,8 @@ def run_review(api_key: str, model: str, prompt: str, language: str = "English",
     except urllib.error.HTTPError as e:
         raise RuntimeError(f"OpenAI API error {e.code}: {e.read().decode(errors='replace')[:500]}") from e
     data = json.loads(_extract_text(resp))
-    return Review(**{k: data.get(k) for k in Review.__dataclass_fields__ if k in data})
+    review = Review(**{k: data[k] for k in Review.__dataclass_fields__ if k in data})
+    usage = resp.get("usage") or {}
+    review.input_tokens = int(usage.get("input_tokens") or 0)
+    review.output_tokens = int(usage.get("output_tokens") or 0)
+    return review

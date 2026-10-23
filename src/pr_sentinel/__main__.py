@@ -20,6 +20,20 @@ def env(name: str, default: str = "") -> str:
     return os.environ.get(f"INPUT_{name.upper()}", os.environ.get(name.upper(), default)).strip()
 
 
+def skip_reason(pr: dict, skip_drafts: str = "true", review_bots: str = "false", skip_label: str = "sentinel:skip") -> str | None:
+    """Return why this PR should not be reviewed, or None to review it."""
+    if pr.get("draft") and skip_drafts.lower() == "true":
+        return "draft PR"
+    user = pr.get("user") or {}
+    login = user.get("login", "")
+    if review_bots.lower() != "true" and (user.get("type") == "Bot" or login.endswith("[bot]")):
+        return f"bot author ({login})"
+    labels = {lbl.get("name") for lbl in pr.get("labels") or []}
+    if skip_label and skip_label in labels:
+        return f"'{skip_label}' label"
+    return None
+
+
 def _review_or_note(title, body, signals, files, use_model):
     model = env("model", "gpt-5.4")
     api_key = env("openai_api_key") or os.environ.get("OPENAI_API_KEY", "")
@@ -28,15 +42,15 @@ def _review_or_note(title, body, signals, files, use_model):
     diff_text, skipped = build_prompt_diff(files, max_chars, ignore)
 
     if not use_model:
-        return None, skipped, None, "Model review disabled; showing automated checks only."
+        return None, skipped, None, "note_disabled"
     if not api_key:
-        return None, skipped, None, "No OpenAI API key available (common for PRs from forks); showing automated checks only."
+        return None, skipped, None, "note_nokey"
     try:
         prompt = build_input(title, body, signals, diff_text, skipped)
         return run_review(api_key, model, prompt, env("language", "English")), skipped, model, None
     except Exception as e:  # never fail the PR because the reviewer failed
         print(f"::warning::PR Sentinel model review failed: {e}", file=sys.stderr)
-        return None, skipped, None, "Model review failed; showing automated checks only."
+        return None, skipped, None, "note_failed"
 
 
 def local(path: str, use_model: bool) -> int:
@@ -44,7 +58,7 @@ def local(path: str, use_model: bool) -> int:
         files = parse_unified_diff(fh.read())
     signals = analyze(files)
     review, skipped, model, note = _review_or_note("(local run)", "", signals, files, use_model)
-    print(render(signals, review, skipped, model, note))
+    print(render(signals, review, skipped, model, note, env("language", "English")))
     return 0
 
 
@@ -60,15 +74,16 @@ def action() -> int:
     if not number:
         print("::notice::Not a pull_request event; nothing to do.")
         return 0
-    if pr.get("draft") and env("skip_drafts", "true").lower() == "true":
-        print("::notice::Draft PR skipped.")
+    reason = skip_reason(pr, env("skip_drafts", "true"), env("review_bots", "false"), env("skip_label", "sentinel:skip"))
+    if reason:
+        print(f"::notice::PR Sentinel skipped: {reason}.")
         return 0
 
     gh = GitHub(token, repo)
     files = parse_unified_diff(gh.pull_diff(number))
     signals = analyze(files)
     review, skipped, model, note = _review_or_note(pr.get("title", ""), pr.get("body") or "", signals, files, env("use_model", "true").lower() == "true")
-    body = render(signals, review, skipped, model, note)
+    body = render(signals, review, skipped, model, note, env("language", "English"))
 
     result = gh.upsert_comment(number, body, MARKER)
     risk = final_risk(signals, review)
