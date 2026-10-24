@@ -13,6 +13,7 @@ import sys
 from . import codeowners
 from .comment import MARKER, final_risk, prepare_inline_comments, render
 from .diff import build_prompt_diff, parse_unified_diff
+from .duplicates import find_duplicates
 from .heuristics import analyze
 from .review import build_input, run_review
 
@@ -120,7 +121,23 @@ def action() -> int:
     signals = analyze(files)
     review, skipped, model, note = _review_or_note(pr.get("title", ""), pr.get("body") or "", signals, files, env("use_model", "true").lower() == "true")
     reviewers = _reviewers(gh, pr, files) if env("suggest_reviewers", "true").lower() == "true" else []
-    body = render(signals, review, skipped, model, note, env("language", "English"), reviewers)
+
+    duplicates = []
+    if env("detect_duplicates", "true").lower() == "true":
+        try:
+            open_prs = gh.open_pulls(limit=30)
+            duplicates = find_duplicates(
+                current_pr=pr,
+                current_files=[f.path for f in files],
+                open_prs=open_prs,
+                fetch_files_fn=gh.pull_files,
+            )
+            if duplicates:
+                print(f"PR Sentinel: detected {len(duplicates)} potential duplicate PR(s).")
+        except Exception as e:
+            print(f"::warning::Could not check for duplicate PRs: {e}", file=sys.stderr)
+
+    body = render(signals, review, skipped, model, note, env("language", "English"), reviewers, duplicates)
 
     result = gh.upsert_comment(number, body, MARKER)
     risk = final_risk(signals, review)

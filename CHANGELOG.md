@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0 — 2026-10-24
+
+### Added
+- Duplicate PR and issue detection: PR Sentinel scans open pull requests in the repository to flag duplicates based on referenced issue numbers (`#123`, `closes #...`), title token similarity, and changed files overlap.
+- Dedicated comment section: Potential duplicates are displayed with similarity percentages, shared issue numbers, and overlapping files, localized in English and Turkish.
+- Configurable with `detect_duplicates: true` (default) or `false`.
+
 ## 0.5.0 — 2026-10-23
 
 ### Added

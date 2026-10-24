@@ -322,3 +322,140 @@ def test_render_includes_cost_estimate():
     assert "Token: 12,345 girdi / 678 çıktı (~$0.038)." in body_tr
 
 
+def test_duplicate_issue_references():
+    from pr_sentinel.duplicates import find_issue_references
+
+    assert find_issue_references("Closes #123 and fixes #456") == {"123", "456"}
+    assert find_issue_references("Resolve gh-789") == {"789"}
+    assert find_issue_references("Just some text without issues") == set()
+    assert find_issue_references("#42 at start") == {"42"}
+
+
+def test_duplicate_title_similarity():
+    from pr_sentinel.duplicates import title_similarity
+
+    # Exact match after prefix stripping
+    sim1 = title_similarity("fix: typo in README.md", "docs(readme): typo in README.md")
+    assert sim1 > 0.8
+
+    # Substring match
+    sim2 = title_similarity("Fix memory leak", "Fix memory leak in websocket connection")
+    assert sim2 >= 0.85
+
+    # Completely unrelated
+    sim3 = title_similarity("Update dependencies", "Add dark mode toggle")
+    assert sim3 == 0.0
+
+
+def test_find_duplicates():
+    from pr_sentinel.duplicates import find_duplicates
+
+    current = {
+        "number": 10,
+        "title": "fix: resolve memory leak in client",
+        "body": "Fixes #55 by closing buffer",
+    }
+    open_prs = [
+        # Match 1: shared issue and similar title
+        {
+            "number": 8,
+            "title": "Fix client memory leak",
+            "body": "Closes #55",
+            "user": {"login": "alice"},
+            "html_url": "https://github.com/org/repo/pull/8",
+        },
+        # Match 2: same files, similar title
+        {
+            "number": 9,
+            "title": "resolve memory leak in client",
+            "body": "no issue ref",
+            "user": {"login": "bob"},
+            "html_url": "https://github.com/org/repo/pull/9",
+        },
+        # Unrelated PR
+        {
+            "number": 7,
+            "title": "Update README.md",
+            "body": "",
+            "user": {"login": "charlie"},
+        },
+    ]
+
+    def fake_files(num):
+        if num == 8:
+            return ["src/client.py"]
+        if num == 9:
+            return ["src/client.py", "tests/test_client.py"]
+        return ["README.md"]
+
+    matches = find_duplicates(
+        current_pr=current,
+        current_files=["src/client.py"],
+        open_prs=open_prs,
+        fetch_files_fn=fake_files,
+        threshold=0.6,
+    )
+
+    assert len(matches) == 2
+    assert matches[0].number == 8
+    assert "55" in matches[0].shared_issues
+    assert matches[0].shared_files == ["src/client.py"]
+    assert matches[1].number == 9
+
+
+def test_render_duplicates():
+    from pr_sentinel.duplicates import DuplicateMatch
+
+    s = analyze(parse_unified_diff(SAMPLE))
+    dups = [
+        DuplicateMatch(
+            number=42,
+            title="Fix admin password verification",
+            author="eve",
+            url="https://github.com/org/repo/pull/42",
+            score=0.88,
+            shared_issues=["101"],
+            shared_files=["src/auth/login.py"],
+        )
+    ]
+
+    # English render
+    body_en = render(s, None, [], None, duplicates=dups)
+    assert "### ⚠️ Potential Duplicate PRs" in body_en
+    assert "[#42](https://github.com/org/repo/pull/42)" in body_en
+    assert "`@eve`" in body_en
+    assert "88% match" in body_en
+    assert "shares #101" in body_en
+    assert "1 shared file(s)" in body_en
+
+    # Turkish render
+    body_tr = render(s, None, [], None, language="Turkish", duplicates=dups)
+    assert "### ⚠️ Olası Mükerrer / Kopya PR'lar" in body_tr
+    assert "%88 benzerlik" in body_tr
+    assert "#101 ortak issue" in body_tr
+    assert "1 ortak dosya" in body_tr
+
+
+def test_github_open_pulls_and_pull_files(monkeypatch):
+    from pr_sentinel.github import GitHub
+
+    def fake_req(self, method, path, body=None, accept="application/vnd.github+json", raw_text=False):
+        if "/pulls?state=open" in path:
+            return [{"number": 1, "title": "Test PR"}]
+        if "/pulls/1/files" in path:
+            return [{"filename": "src/main.py"}, {"filename": "README.md"}]
+        return {}
+
+    monkeypatch.setattr(GitHub, "_req", fake_req)
+    gh = GitHub("tok", "owner/repo")
+
+    pulls = gh.open_pulls(10)
+    assert len(pulls) == 1
+    assert pulls[0]["number"] == 1
+
+    files = gh.pull_files(1)
+    assert files == ["src/main.py", "README.md"]
+
+
+
+

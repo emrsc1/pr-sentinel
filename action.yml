@@ -53,6 +53,10 @@ inputs:
     description: "Post inline review comments on the PR diff for findings with specific lines."
     required: false
     default: "true"
+  detect_duplicates:
+    description: "Detect potential duplicate or overlapping open pull requests."
+    required: false
+    default: "true"
   use_model:
     description: "Set to false to run only the automated checks."
     required: false
@@ -89,6 +93,7 @@ runs:
         INPUT_SKIP_LABEL: ${{ inputs.skip_label }}
         INPUT_SUGGEST_REVIEWERS: ${{ inputs.suggest_reviewers }}
         INPUT_INLINE_COMMENTS: ${{ inputs.inline_comments }}
+        INPUT_DETECT_DUPLICATES: ${{ inputs.detect_duplicates }}
         INPUT_USE_MODEL: ${{ inputs.use_model }}
         INPUT_FAIL_ON: ${{ inputs.fail_on }}
       run: python -m pr_sentinel

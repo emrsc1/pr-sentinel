@@ -33,6 +33,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "note_disabled": "Model review disabled; showing automated checks only.",
         "note_nokey": "No OpenAI API key available (common for PRs from forks); showing automated checks only.",
         "note_failed": "Model review failed; showing automated checks only.",
+        "duplicates": "Potential Duplicate PRs",
+        "dup_match": "{n}% match",
+        "dup_shares_issues": "shares #{issues}",
+        "dup_shares_files": "{n} shared file(s)",
     },
     "tr": {
         "risk": "risk",
@@ -54,6 +58,10 @@ STRINGS: dict[str, dict[str, str]] = {
         "note_disabled": "Model incelemesi kapalı; sadece otomatik kontroller gösteriliyor.",
         "note_nokey": "OpenAI API anahtarı yok (fork'tan gelen PR'larda normal); sadece otomatik kontroller gösteriliyor.",
         "note_failed": "Model incelemesi başarısız oldu; sadece otomatik kontroller gösteriliyor.",
+        "duplicates": "Olası Mükerrer / Kopya PR'lar",
+        "dup_match": "%{n} benzerlik",
+        "dup_shares_issues": "#{issues} ortak issue",
+        "dup_shares_files": "{n} ortak dosya",
     },
 }
 
@@ -89,6 +97,7 @@ def render(
     note: str | None = None,
     language: str | None = None,
     reviewers: list[str] | None = None,
+    duplicates: list[Any] | None = None,
 ) -> str:
     t = STRINGS[lang_code(language)]
     risk = final_risk(signals, review)
@@ -113,6 +122,20 @@ def render(
             out.append(f"### {t['tests']}")
             out += [f"- {x}" for x in review.missing_tests]
             out.append("")
+
+    if duplicates:
+        out.append(f"### ⚠️ {t['duplicates']}")
+        for d in duplicates:
+            parts = [t["dup_match"].format(n=d.percent)]
+            if getattr(d, "shared_issues", None):
+                issues_str = ", #".join(d.shared_issues)
+                parts.append(t["dup_shares_issues"].format(issues=issues_str))
+            if getattr(d, "shared_files", None):
+                parts.append(t["dup_shares_files"].format(n=len(d.shared_files)))
+            meta = " · ".join(parts)
+            author = f"`@{d.author}`" if d.author and d.author != "unknown" else ""
+            out.append(f"- [#{d.number}]({d.url}) {author}: {d.title.strip()} _({meta})_")
+        out.append("")
 
     if reviewers:
         # Backticks so owners are shown without being @-mentioned (no notification spam).

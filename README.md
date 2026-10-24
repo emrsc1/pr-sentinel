@@ -7,10 +7,11 @@ Maintainers are drowning in pull requests, and a growing share of them are large
 - **What does this PR actually do?** A short, plain summary.
 - **How risky is it?** A `risk:low | medium | high` label you can filter and sort by.
 - **Where should I look?** Specific findings tied to files and lines, with inline review comments and one-click suggestions.
+- **Is someone else already working on this?** Automatic detection of duplicate or overlapping open PRs.
 - **Is it worth my time?** A flag for PRs that look low-effort or unreviewed.
 - **Who should review it?** Owners of the changed files from your `CODEOWNERS`, without pinging anyone.
 
-It updates the same comment on every push instead of spamming the thread, posts line-level review comments with suggestions directly in the diff, shows token counts and estimated dollar cost for each review, and can write the whole comment in Turkish.
+It updates the same comment on every push instead of spamming the thread, posts line-level review comments with suggestions directly in the diff, flags duplicate PRs, shows token counts and estimated dollar cost for each review, and can write the whole comment in Turkish.
 
 [![CI](https://github.com/emrsc1/pr-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/emrsc1/pr-sentinel/actions/workflows/ci.yml)
 ![License: MIT](https://img.shields.io/badge/license-MIT-blue)
@@ -79,6 +80,7 @@ Design choices that matter to maintainers:
 | `skip_label` | `sentinel:skip` | PRs with this label are skipped. |
 | `suggest_reviewers` | `true` | List CODEOWNERS of the changed files (no @-mentions). |
 | `inline_comments` | `true` | Post inline review comments on the PR diff with suggestions. |
+| `detect_duplicates` | `true` | Detect potential duplicate or overlapping open pull requests. |
 | `use_model` | `true` | `false` = free heuristics-only mode. |
 | `fail_on` | `none` | `medium` or `high` to fail the check at that risk. |
 
@@ -97,7 +99,7 @@ OPENAI_API_KEY=sk-... PYTHONPATH=src python -m pr_sentinel --diff my.diff
 - [x] Inline review comments on specific lines (with one-click suggestions)
 - [ ] `.pr-sentinel.yml` per-repo rules (custom sensitive paths, house style)
 - [ ] Contributor-facing mode: suggestions the author can fix before a maintainer looks
-- [ ] Duplicate PR / issue detection
+- [x] Duplicate PR / issue detection
 - [ ] Release notes and changelog drafting from merged PRs
 - [x] Token usage per review
 - [x] Turkish comment layout

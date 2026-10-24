@@ -41,6 +41,21 @@ class GitHub:
     def pull_diff(self, number: int) -> str:
         return self._req("GET", f"/repos/{self.repo}/pulls/{number}", accept="application/vnd.github.v3.diff")
 
+    def open_pulls(self, limit: int = 30) -> list[dict]:
+        """Fetch open pull requests for the repository."""
+        res = self._req("GET", f"/repos/{self.repo}/pulls?state=open&per_page={min(limit, 100)}")
+        return res if isinstance(res, list) else []
+
+    def pull_files(self, number: int) -> list[str]:
+        """Fetch changed file paths in a pull request."""
+        try:
+            res = self._req("GET", f"/repos/{self.repo}/pulls/{number}/files?per_page=100")
+            if isinstance(res, list):
+                return [f["filename"] for f in res if isinstance(f, dict) and "filename" in f]
+        except Exception:
+            pass
+        return []
+
     def file_text(self, path: str, ref: str | None = None) -> str | None:
         """Raw text of a file in the repo, or None if it doesn't exist."""
         q = f"?ref={urllib.request.quote(ref)}" if ref else ""
